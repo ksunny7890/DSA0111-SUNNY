@@ -1,0 +1,11 @@
+sizeof(bool) = 1 byte(s)
+sizeof(char) = 1 byte(s)
+sizeof(int) = 4 byte(s)
+sizeof(long long) = 8 byte(s)
+sizeof(double) = 8 byte(s)
+INT_MAX = 2147483647
+LLONG_MAX = 9223372036854775807
+Network total (paise) = 9000000000
+Network total (rupees) = 90000000
+Adding 0.1 as double 100000 times = 10000.000000018848
+Expected mathematical result = 10000.000000000000

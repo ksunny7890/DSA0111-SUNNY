@@ -1,0 +1,6 @@
+Inner fare (paise): 1000
+Middle fare (paise): 2000
+Outer fare (paise): 3000
+Peak surcharge (%): 20
+Minimum balance (paise): 5000
+Selected zone: Middle
