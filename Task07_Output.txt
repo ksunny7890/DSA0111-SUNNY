@@ -1,2 +1,0 @@
-Procedural balance (paise): 8000
-OOP balance (paise): 8000
