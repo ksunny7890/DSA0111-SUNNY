@@ -1,0 +1,83 @@
+TASK A3 – DESIGN WITH ABSTRACT CLASSES
+
+Object-Oriented Programming – Hospital Billing System
+
+A3.1 – Payer Interface (3 Marks)
+
+Payer is an abstract interface. Its pure virtual function
+amountCovered(const Bill&) calculates how much a payer covers for a
+bill.
+
+#include #include using namespace std;
+
+class Payer { public: virtual double amountCovered(const Bill& bill)
+const = 0; virtual ~Payer() noexcept = default; };
+
+class SelfPay : public Payer { public: double amountCovered(const Bill&
+bill) const override { (void)bill; return 0.0; // patient pays the full
+amount } };
+
+class Insurance : public Payer { double coverLimit; double
+copaymentRate; // 0.20 means patient pays 20% public: Insurance(double
+limit, double copay) : coverLimit(limit), copaymentRate(copay) { if
+(limit < 0 || copay < 0 || copay > 1) throw invalid_argument(“Invalid
+insurance terms”); } double amountCovered(const Bill& bill) const
+override { double eligible = bill.total() * (1.0 - copaymentRate);
+return min(eligible, coverLimit); } };
+
+class GovernmentScheme : public Payer { double packageRate; public:
+explicit GovernmentScheme(double rate) : packageRate(rate) { if (rate <
+0) throw invalid_argument(“Invalid package rate”); } double
+amountCovered(const Bill& bill) const override { return
+min(bill.total(), packageRate); } };
+
+Example: a ₹10,000 bill with 20% co-payment and ₹9,000 cover limit gives
+insurance coverage min(₹8,000, ₹9,000) = ₹8,000. The patient is
+responsible for ₹2,000, subject to scheme rules.
+
+SelfPay returns zero coverage because the patient pays the entire bill.
+GovernmentScheme covers up to its fixed package rate.
+
+A3.2 – Extension: Corporate tie-up (2 Marks)
+
+class CorporateTieUp : public Payer { double coverageRate; public:
+explicit CorporateTieUp(double rate) : coverageRate(rate) { if (rate < 0
+|| rate > 1) throw invalid_argument(“Invalid corporate coverage rate”);
+} double amountCovered(const Bill& bill) const override { return
+bill.total() * coverageRate; } };
+
+The new class implements the existing Payer interface. Existing payer
+classes and code using Payer references do not need to change. This
+follows the Open-Closed Principle.
+
+Alternative: function pointers or std::function
+
+#include
+
+using PaymentPolicy = function<double(const Bill&)>;
+
+double insuranceLimit = 9000.0; double copay = 0.20;
+
+PaymentPolicy insurancePolicy = insuranceLimit, copay { return
+min(bill.total() * (1.0 - copay), insuranceLimit); };
+
+double covered = insurancePolicy(bill);
+
+Factor | Abstract Payer class | Function / std::function
+
+Time per call | O(1) virtual dispatch | O(1) callable invocation
+
+Space per payer | Object fields + typically vptr | Callable
+wrapper/storage + captured state
+
+Cover limit | Stored as data member | Stored in lambda capture or
+external state
+
+Extension | Add derived class | Create another callable
+
+Best fit | Complex policies with state | Compact interchangeable
+policies
+
+Both support run-time selection. An abstract class groups related state
+and behavior; std::function is convenient when a policy is naturally a
+callable.
