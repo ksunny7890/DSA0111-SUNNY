@@ -1,0 +1,117 @@
+TASK A5 – DESIGN RECOVERY AND RETHROWING
+
+Object-Oriented Programming – Hospital Billing System
+
+A5.1 – Where to catch, log and rethrow (2 Marks)
+
+Catch an exception where meaningful recovery, context or reporting is
+possible. A low-level function may log useful context and use throw; to
+rethrow the same exception. The application boundary catches and reports
+the final error.
+
+void createInvoice(const Patient& patient) { try { // Build bill,
+validate charges and calculate coverage. } catch (const BillingError& e)
+{ logError(string(“Invoice creation failed:”) + e.what()); throw; //
+rethrow the current exception } }
+
+int main() { try { // Load patient and create invoice. } catch (const
+PatientNotFoundError& e) { reportToUser(string(“Patient issue:”) +
+e.what()); } catch (const BillingError& e) {
+reportToUser(string(“Billing issue:”) + e.what()); } catch (const
+std::bad_alloc&) { reportToUser(“Insufficient memory. Please try
+again.”); } catch (const std::exception& e) { logError(e.what());
+reportToUser(“An unexpected system error occurred.”); } }
+
+Validation/data-access functions detect the error and throw a specific
+exception.
+
+A service layer may add context, log once, and rethrow using throw;.
+
+The application boundary catches the exception and reports a safe
+message to the user.
+
+Catch by const reference to avoid slicing; catch specific types before
+base types.
+
+Avoid logging the same exception at every layer, which creates duplicate
+log entries.
+
+A5.2 – No leaks on errors (2 Marks)
+
+Stack unwinding occurs when an exception leaves a scope. Fully
+constructed automatic objects in that scope are destroyed in reverse
+order of construction until a matching handler is reached.
+
+RAII (Resource Acquisition Is Initialization) ties resource ownership to
+object lifetime. Destructors release resources automatically during
+normal scope exit and exception unwinding.
+
+#include #include #include
+
+void process() { auto bill = std::make_unique(/* arguments */);
+std::vector items; std::ofstream file(“billing.log”);
+
+    // If an exception occurs:
+    // vector releases its storage,
+    // file closes,
+    // unique_ptr deletes the bill.
+
+}
+
+std::unique_ptr, std::vector and std::ofstream are RAII types. They are
+safer than manually pairing new/delete or open/close.
+
+Predict the output
+
+Prediction before execution:
+
+~f ~main caught 42
+
+Expected output:
+
+~f ~main caught 42
+
+There is no difference between the prediction and expected output.
+
+Guard m is constructed in main().
+
+f() constructs Guard g and then throws the integer 42.
+
+During unwinding out of f(), g is destroyed first and prints ~f.
+
+Unwinding leaves main’s try block, so m is destroyed and prints ~main.
+
+The matching catch(int x) handler prints caught 42.
+
+The statement printing not printed is skipped because throw transfers
+control out of the try block.
+
+All text is printed on one line, followed by the final newline.
+
+Alternative: manual delete in every catch block
+
+Resource* p = new Resource; try { performWork(); } catch (const
+BillingError&) { delete p; throw; } catch (const std::exception&) {
+delete p; throw; } delete p;
+
+Manual cleanup requires every error path to release every resource
+already acquired. When a new resource or catch path is added, all paths
+must be reviewed. A missed delete can leak memory; careless repeated
+cleanup can cause double deletion or use-after-free.
+
+Factor | Manual cleanup | RAII
+
+Time | Same underlying resource-release work; generally same asymptotic
+complexity | Same underlying resource-release work
+
+Code size | Repeated cleanup in normal and error paths | Less repeated
+code; ownership is encoded in objects
+
+New error path | Every path must be updated | Automatic cleanup during
+unwinding
+
+Leak risk | Each missed resource/path cleanup is a possible leak | Much
+lower when ownership is correctly represented
+
+Conclusion: RAII is preferred because cleanup is automatic, local and
+reliable when exceptions pass through multiple functions.

@@ -1,0 +1,105 @@
+TASK A2 – UNDERSTAND RUNTIME BINDING
+
+Object-Oriented Programming – Hospital Billing System
+
+A2.1 – Early and Late Binding (2 Marks)
+
+Early (static) binding resolves a call at compile time, commonly for
+non-virtual functions. Late (dynamic) binding resolves a virtual call at
+run time using the dynamic type of the object.
+
+Bill* b = new OutPatientBill(…); b->print(); // virtual: derived
+implementation b->total(); // virtual: OutPatientBill::total() delete b;
+
+A non-virtual call is selected using the static type. A virtual call
+uses the actual object’s dynamic type.
+
+Early binding | Late binding
+
+Resolved at compile time | Resolved at run time
+
+Usually non-virtual functions | Virtual functions
+
+Based on static type | Based on dynamic object type
+
+A2.2 – Virtual tables (2 Marks)
+
+A typical C++ implementation stores a hidden vptr in each polymorphic
+object. It points to a compiler-generated vtable. Exact layout is
+implementation-dependent.
+
+Conceptual vtables (simplified)
+
+Bill: total -> pure virtual slot destructor -> Bill::~Bill
+
+OutPatientBill: total -> OutPatientBill::total destructor ->
+OutPatientBill::~OutPatientBill
+
+InPatientBill: total -> InPatientBill::total destructor ->
+InPatientBill::~Bill
+
+Object: [vptr] [Bill data] [derived data] vptr -> vtable for the
+object’s dynamic type
+
+For Bill* b = new OutPatientBill(…), b->total() uses the object’s vptr,
+finds the total entry in the OutPatientBill vtable and invokes
+OutPatientBill::total(). A real compiler may include additional entries.
+
+A2.3 – Why Bill needs a virtual destructor (1 Mark)
+
+When a derived object is deleted through a base pointer, the base
+destructor must be virtual. Otherwise behavior is undefined in C++; the
+derived destructor may not run. A virtual destructor ensures derived
+destruction followed by base destruction.
+
+Predict the output
+
+Prediction made before execution:
+
+500 ~OPBill ~Bill
+
+show() is non-virtual, so Bill::show() is selected. Inside it, total()
+is virtual; because the object is OPBill, OPBill::total() returns 500.
+delete b then calls OPBill::~OPBill() followed by Bill::~Bill().
+
+Expected output from the given program:
+
+500 ~OPBill ~Bill
+
+There is no difference between prediction and expected output.
+
+Remove virtual from ~Bill
+
+Deleting an OPBill through Bill* when Bill has a non-virtual destructor
+is undefined behavior. A possible observed output is:
+
+500 ~Bill
+
+This output is not guaranteed. The program may behave differently or
+fail. AddressSanitizer may or may not diagnose this exact defect; it is
+not a proof that undefined behavior is absent.
+
+g++ -std=c++17 -Wall -Wextra -g -fsanitize=address
+-fno-omit-frame-pointer program.cpp -o program ./program
+
+The safe fix is virtual ~Bill() noexcept = default;.
+
+Alternative: dynamic_cast instead of virtual total()
+
+double calculate(Bill* b) { if (auto* p =
+dynamic_cast<OutPatientBill>(b)) return p->total(); if (auto p =
+dynamic_cast<InPatientBill*>(b)) return p->total(); throw
+invalid_argument(“Unsupported bill type”); }
+
+Factor | Virtual call | Repeated dynamic_cast
+
+Dispatch work | Typically O(1) per call | Up to k checks for k types
+
+Object space | Typically includes a vptr | dynamic_cast requires
+polymorphic type information; no additional vptr beyond that
+
+Adding a type | Implement override in new subtype | Update type-checking
+function
+
+The exact cost of dynamic_cast is implementation-dependent; O(k) is a
+useful upper-level comparison when checking up to k alternatives.

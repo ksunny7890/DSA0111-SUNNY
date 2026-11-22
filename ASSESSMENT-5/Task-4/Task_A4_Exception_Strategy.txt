@@ -1,0 +1,96 @@
+TASK A4 – DESIGN THE EXCEPTION STRATEGY
+
+Object-Oriented Programming – Hospital Billing System
+
+A4.1 – Identify the errors (2 Marks)
+
+Error condition | Suggested exception
+
+Negative charge or invalid amount | InvalidChargeError
+
+Claim exceeds payer cover | ClaimError
+
+Unknown government package | PackageError
+
+Patient record missing | PatientNotFoundError
+
+Memory allocation failure | std::bad_alloc
+
+The first four are application-level billing errors. std::bad_alloc is
+supplied by the C++ standard library and derives from std::exception.
+
+Exception hierarchy
+
+std::exception +– std::runtime_error +– BillingError +–
+InvalidChargeError +– ClaimError +– PackageError +– PatientNotFoundError
+
+std::bad_alloc (separate standard exception)
+
+#include #include using namespace std;
+
+class BillingError : public runtime_error { public: explicit
+BillingError(const string& message) : runtime_error(message) {} }; class
+InvalidChargeError : public BillingError { public: InvalidChargeError()
+: BillingError(“Negative or invalid charge”) {} }; class ClaimError :
+public BillingError { public: ClaimError() : BillingError(“Claim exceeds
+permitted cover”) {} }; class PackageError : public BillingError {
+public: PackageError() : BillingError(“Unknown government package”) {}
+}; class PatientNotFoundError : public BillingError { public:
+PatientNotFoundError() : BillingError(“Patient record not found”) {} };
+
+A4.2 – Specify exceptions (2 Marks)
+
+Function / operation | May throw? | Reason
+
+Bill construction / validation | Yes | Reject invalid charges
+
+Payer::amountCovered() | Yes | Invalid claim or payer terms
+
+findPatient() | Yes | Patient record may be missing
+
+loadPackage() | Yes | Package may be unknown
+
+Allocation / make_unique | Yes | May throw std::bad_alloc
+
+print() | Potentially | I/O can fail if stream exceptions are enabled
+
+Destructor / cleanup | No; noexcept | Cleanup must not throw
+
+class Bill { public: virtual double total() const = 0; virtual ~Bill()
+noexcept = default; };
+
+void releaseResources() noexcept { // Cleanup; do not allow exceptions
+to escape. }
+
+Destructors should not throw. During stack unwinding an exception is
+already active; if a destructor lets another exception escape,
+std::terminate is called. Do not mark a function noexcept if it
+legitimately needs to report errors by throwing.
+
+Alternative: return codes
+
+enum class Status { Success, InvalidCharge, ClaimExceeded,
+UnknownPackage, PatientMissing };
+
+Status calculateBill(double charge, double& result, string&
+errorMessage) { if (charge < 0) { errorMessage = “Negative charge”;
+return Status::InvalidCharge; } result = charge; errorMessage.clear();
+return Status::Success; }
+
+Factor | Exceptions | Return codes
+
+Normal path | Normal flow need not check every return value | Status
+must be checked and propagated
+
+Error path | Unwinds to matching catch | Return status/message through
+callers
+
+Extra space | Runtime exception state when thrown | Status and message
+storage
+
+Code | Central catch handling | Every caller must check and forward
+errors
+
+Return codes can suit expected, frequent outcomes, but callers may
+forget to check them. Exceptions separate normal flow from exceptional
+handling.
